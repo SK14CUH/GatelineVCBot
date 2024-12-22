@@ -4,9 +4,11 @@ __pycache__
 /guilds/*.json
 /logo
 /utils
+/server_icons
 analytics.json
 config.json
 log*.txt
 push.bat
 secondaries.txt
 venv.bat
+.*
