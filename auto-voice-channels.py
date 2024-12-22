@@ -653,7 +653,7 @@ async def update_status(client):
                     await func.set_server_icon_call_active(guild)
                 else:
                     await func.set_server_icon_no_calls(guild)
-            text = "{}help | {} channel{}".format(prefix, nc, ("s" if nc != 1 else ""))
+            text = "{} active call{}".format(prefix, nc, ("s" if nc != 1 else ""))
         else:
             text = "🚧No guilds🚧"
 
