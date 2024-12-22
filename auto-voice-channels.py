@@ -19,7 +19,8 @@ import pytz
 import translate
 import utils
 import functions as func
-from functions import log, echo
+from functions import echo
+from utils import logger
 from discord.ext.tasks import loop
 
 intents = discord.Intents.default()
@@ -38,7 +39,9 @@ except ImportError:  # Pragma no cover
     pass
 
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
+rootlogger = logger()
+
 ADMIN_CHANNEL = None
 ADMIN = None
 
@@ -48,7 +51,7 @@ DEV_BOT = cfg.CONFIG["DEV"] if "DEV" in cfg.CONFIG else False
 NUM_SHARDS = cfg.CONFIG["num_shards"] if "num_shards" in cfg.CONFIG else 0
 
 if DEV_BOT:
-    print("DEV BOT")
+    rootlogger.warning("DEV BOT")
     TOKEN = cfg.CONFIG["token_dev"]
 else:
     TOKEN = cfg.CONFIG["token"]
@@ -57,7 +60,7 @@ LAST_COMMIT = "UNKNOWN"
 try:
     LAST_COMMIT = subprocess.check_output(["git", "log", "-1"]).decode("ascii").strip().split("\n\n    ", 1)[1]
 except:
-    print("Warning: Failed to get last commit log")
+    rootlogger.warning("Warning: Failed to get last commit log")
     pass
 
 utils.clean_permastore()
@@ -72,7 +75,7 @@ class LoopChecks:
         self._tick = tick
 
     async def waiting_loop(self):
-        print("Starting Waiting Loop")
+        rootlogger.info("Starting Waiting Loop")
         while True:
             tmp = {}
             for c, v in cfg.CURRENT_REQUESTS.items():
@@ -83,7 +86,7 @@ class LoopChecks:
             await asyncio.sleep(self._tick)
 
     async def active_loop(self):
-        print("Starting Active Loop")
+        rootlogger.info("Starting Active Loop")
         while True:
             tmp = {}
             for u, v in cfg.USER_REQUESTS.items():
@@ -97,7 +100,7 @@ class LoopChecks:
             await asyncio.sleep(self._tick)
 
     async def other_loops(self):
-        print("Starting Other Loops")
+        rootlogger.info("Starting Other Loops")
         while True:
             tmp = {}
             for e, v in cfg.ERROR_MESSAGES.items():
@@ -113,7 +116,7 @@ class LoopChecks:
             await asyncio.sleep(self._tick)
 
     async def timer(self):
-        print("Starting Timer")
+        rootlogger.info("Starting Timer")
         while True:
             self._time = time()
             await asyncio.sleep(self._tick)
@@ -255,7 +258,7 @@ def for_looper(client):
                     dying = sv["dying"] + 1 if "dying" in sv else 1
                     settings["auto_channels"][p]["secondaries"][sid]["dying"] = dying
                     cfg.GUILD_SETTINGS[guild.id] = settings  # Temporarily settings, no need to write to disk.
-                    log("{} is dead ({})".format(sid, dying), guild)
+                    logger(guild).warning("%s is dead (%s)", sid, dying)
                     if dying >= 3:
                         dead_secondaries.append(sid)
                 else:
@@ -308,8 +311,7 @@ async def check_votekicks(client):
             try:
                 vk = cfg.VOTEKICKS[mid]
             except KeyError:
-                print("Ignoring error:")
-                traceback.print_exc()
+                rootlogger.exception("**This error was ignored**")
                 continue
             guild = vk["message"].guild
             guilds = func.get_guilds(client)
@@ -404,8 +406,7 @@ async def create_join_channels(client):
         try:
             pcv = cfg.PRIV_CHANNELS[pc]
         except KeyError:
-            print("Ignoring error:")
-            traceback.print_exc()
+            rootlogger.exception("**This error was ignored**")
             continue
 
         if "request_time" in pcv and time() - pcv["request_time"] > 120:
@@ -418,9 +419,9 @@ async def create_join_channels(client):
                     "Use `{}public` to make it public again."
                     "".format(pcv["creator"].mention, pcv["prefix"])
                 )
-                log("Failed to create join-channel, timed out.")
+                rootlogger.error("Failed to create join-channel, timed out.")
             except (discord.errors.Forbidden, discord.errors.NotFound):
-                log("Failed to create join-channel, timed out - and failed to send message.")
+                rootlogger.error("Failed to create join-channel, timed out - and failed to send message.")
             continue
 
         guild = client.get_guild(pcv["guild_id"])
@@ -455,7 +456,7 @@ async def create_join_channels(client):
                                 "".format(pcv["creator"].mention)
                             )
                         except:
-                            log("Failed to create join-channel, and failed to notify {}".format(creator))
+                            logger(guild).error("Failed to create join-channel, and failed to notify %s", creator)
                             break
                         break
                     except discord.errors.HTTPException as e:
@@ -467,7 +468,7 @@ async def create_join_channels(client):
                                 )
                             )
                         except:
-                            log("Failed to create join-channel, and failed to notify {}".format(creator))
+                            logger(guild).error("Failed to create join-channel, and failed to notify %s", creator)
                             break
                         break
 
@@ -495,7 +496,7 @@ async def create_join_channels(client):
                                 ).format(pcv["creator"].mention, e.text)
                             )
                         except:
-                            log("Failed to create join-channel, and failed to notify {}".format(creator))
+                            logger(guild).error("Failed to create join-channel, and failed to notify %s", creator)
                             break
                     break
 
@@ -509,8 +510,7 @@ async def create_join_channels(client):
             del cfg.PRIV_CHANNELS[i]
         except KeyError:
             # Already deleted somehow.
-            print("Ignoring error:")
-            traceback.print_exc()
+            rootlogger.exception("**This error was ignored**")
             pass
 
     end_time = time()
@@ -541,7 +541,7 @@ async def dynamic_tickrate(client):
         new_tickrate = max(10, min(100, new_tickrate))
         new_seed_interval = current_channels / 45
         new_seed_interval = max(10, min(15, new_seed_interval))
-        print("New tickrate is {0:.1f}s, seed interval is {1:.2f}m".format(new_tickrate, new_seed_interval))
+        rootlogger.debug("New tickrate is {0:.1f}s, seed interval is {1:.2f}m".format(new_tickrate, new_seed_interval))
         main_loop.change_interval(seconds=max(301, new_tickrate))
         creation_loop.change_interval(seconds=new_tickrate)
         deletion_loop.change_interval(seconds=new_tickrate * 2)
@@ -586,14 +586,14 @@ async def lingering_secondaries(client):
                         if v.name not in ["⌛", "⚠"]:
                             try:
                                 await v.edit(name="⚠")
-                                log("Remembering channel {}".format(v.id), guild)
+                                logger(guild).info("Remembering channel %s", v.id)
                                 await func.admin_log(
                                     "⚠ Remembering channel `{}` in guild **{}**".format(v.id, guild.name), client
                                 )
                             except discord.errors.NotFound:
                                 pass
                             except Exception:
-                                traceback.print_exc()
+                                rootlogger.exception()
 
                     await asyncio.sleep(0)
                 await asyncio.sleep(0)
@@ -665,9 +665,9 @@ async def update_status(client):
         if text != old_text:
             try:
                 await client.change_presence(activity=discord.Activity(name=text, type=discord.ActivityType.watching))
-                log("Changing status to: {}".format(text.replace(" ", " ")))
+                rootlogger.info("Changing status to: %s", text.replace(" ", " "))
             except Exception as e:
-                log("Failed to update status: {}".format(type(e).__name__))
+                rootlogger.error("Failed to update status: %s", type(e).__name__)
 
 
 loops = {  # loops with client as only arg - passed to admin_commands's `loop` cmd
@@ -716,7 +716,7 @@ async def check_all_channels(guild, settings):
         # Weird ghostly disconnect where things that shouldn't be possible happen.
         if not cfg.DISCONNECTED:
             cfg.DISCONNECTED = True
-            print("There's something strange in the neighborhood.")
+            rootlogger.error("There's something strange in the neighborhood.")
             await func.admin_log("Disconnecting ⁉", client, important=True)
         return
     cfg.DISCONNECTED = False
@@ -727,7 +727,7 @@ async def check_all_channels(guild, settings):
         await check_rename(guild, settings)
 
     except Exception:
-        traceback.print_exc()
+        rootlogger.exception()
 
     return timings
 
@@ -752,14 +752,8 @@ class MyClient(discord.AutoShardedClient):
 
         asyncio.create_task(self.start_chunking())
 
-        print("=" * 24)
-        curtime = datetime.now(pytz.timezone(cfg.CONFIG["log_timezone"])).strftime("%Y-%m-%d %H:%M")
-        print(curtime)
-        print("Logged in as")
-        print(self.user.name)
-        print(self.user.id)
-        print("discordpy version: {}".format(discord.__version__))
-        print("-" * 24)
+        rootlogger.info("Logged in as %s (%s)", self.user.name, self.user.id)
+        rootlogger.info("discordpy version: %s", discord.__version__)
 
         shards = {}
         for g in func.get_guilds(self):
@@ -768,22 +762,22 @@ class MyClient(discord.AutoShardedClient):
             else:
                 shards[g.shard_id] = 1
             settings = utils.get_serv_settings(g)
+            cfg.LOGGERS[g.id] = logging.getLogger(f"GatelineVCBot.{g.id}")
             if "prefix" in settings:
                 cfg.PREFIXES[g.id] = settings["prefix"]
-        print("Shards:", len(shards))
+        rootlogger.info("Shards: %s", len(shards))
         for s in shards:
-            print("s{}: {} guilds".format(s, shards[s]))
-        print("=" * 24)
+            rootlogger.info("s%s: %s guilds", s, shards[s])
 
         if "disable_ready_message" in cfg.CONFIG and cfg.CONFIG["disable_ready_message"]:
-            log("READY")
+            rootlogger.info("**READY**")
         else:
             await func.admin_log("🟥🟧🟨🟩   **Ready**   🟩🟨🟧🟥", self)
 
 
 heartbeat_timeout = cfg.CONFIG["heartbeat_timeout"] if "heartbeat_timeout" in cfg.CONFIG else 60
 if NUM_SHARDS > 1:
-    print("wew")
+    rootlogger.info(f"Using {NUM_SHARDS} shards")
     client = MyClient(
         shard_count=NUM_SHARDS,
         heartbeat_timeout=heartbeat_timeout,
@@ -943,7 +937,7 @@ async def on_message(message):
         success, response = await commands.run(cmd, ctx, params)
 
         if success or response != "NO RESPONSE":
-            log("CMD {}: {}".format("Y" if success else "F", msg), guild)
+            logger(guild).warning("CMD %s: %s", "Y" if success else "F", msg)
 
         if success:
             if response:
@@ -977,7 +971,7 @@ async def on_reaction_add(reaction, user):
             if time() < vk["end_time"]:
                 if user not in vk["in_favor"] and user in vk["participants"]:
                     vk["in_favor"].append(user)
-                    log("{} voted to kick {}".format(user.display_name, vk["offender"].display_name), guild)
+                    logger(guild).info("%s voted to kick %s", user.display_name, vk["offender"].display_name)
         return
 
     to_delete = []
@@ -986,8 +980,7 @@ async def on_reaction_add(reaction, user):
         try:
             j = cfg.JOINS_IN_PROGRESS[uid]
         except KeyError:
-            print("Ignoring error:")
-            traceback.print_exc()
+            rootlogger.exception("**This error was ignored**")
             continue
 
         if reaction.message.id == j["mid"] and user.id == j["creator"].id:
@@ -1134,10 +1127,7 @@ async def on_voice_state_update(member, before, after):
                         "msg": m,
                         "mid": m.id,
                     }
-                    log(
-                        "{} ({}) requests to join {}".format(member.display_name, member.id, creator.display_name),
-                        guild,
-                    )
+                    logger(guild).info("%s (%s) requests to join %s", member.display_name, member.id, creator.display_name)
                     try:
                         await m.add_reaction("✅")
                         await m.add_reaction("❌")
@@ -1145,7 +1135,7 @@ async def on_voice_state_update(member, before, after):
                     except discord.errors.Forbidden:
                         pass
                 except Exception as e:
-                    log("Failed to send join-request message ({})".format(type(e).__name__), guild)
+                    logger(guild).error("Failed to send join-request message (%s)", type(e).__name__)
                 else:
                     cfg.JOINS_IN_PROGRESS[member.id]
 
@@ -1176,7 +1166,8 @@ async def on_guild_join(guild):
     settings = utils.get_serv_settings(guild)
     settings["left"] = False
     utils.set_serv_settings(guild, settings)
-    log("Joined guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
+    cfg.LOGGERS[guild.id] = logging.getLogger(f"GatelineVCBot.{guild.id}")
+    rootlogger.warning("Joined guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
     await func.admin_log(
         ":bell:{} Joined: **{}** (`{}`) - **{}** members".format(
             utils.guild_size_icon(num_members), func.esc_md(guild.name), guild.id, num_members
@@ -1192,7 +1183,8 @@ async def on_guild_remove(guild):
     settings = utils.get_serv_settings(guild)
     settings["left"] = datetime.now(pytz.timezone(cfg.CONFIG["log_timezone"])).strftime("%Y-%m-%d %H:%M")
     utils.set_serv_settings(guild, settings)
-    log("Left guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
+    cfg.LOGGERS.pop(guild.id)
+    rootlogger.warning("Left guild %s `%s` with %s members", guild.name, guild.id, num_members)
     if "leave_inactive" in cfg.CONFIG and guild.id in cfg.CONFIG["leave_inactive"]:
         pass
     elif "leave_unauthorized" in cfg.CONFIG and guild.id in cfg.CONFIG["leave_unauthorized"]:
@@ -1208,10 +1200,11 @@ async def loop_error_override(Exception):
     """Called if unhandled exception occurs in any of our defined loops"""
 
     error_text = traceback.format_exc()
-    print(error_text)
+    rootlogger.error(error_text)
 
     error_text = "<@{}> loop error\n```py\n{}".format(cfg.CONFIG["admin_id"], error_text)
     error_text += "\n```"
+
     try:
         await func.admin_log(error_text, client)
     except:

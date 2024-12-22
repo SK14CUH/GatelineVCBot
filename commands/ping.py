@@ -1,7 +1,7 @@
 import cfg
 import discord
 from functions import dm_user
-from utils import log
+from utils import logger
 from commands.base import Cmd
 
 help_text = [
@@ -25,7 +25,7 @@ async def execute(ctx, params):
     try:
         r = await ctx["channel"].send("One moment...")
     except discord.errors.Forbidden:
-        log("Forbidden to echo", ctx["channel"].guild)
+        logger(ctx["guild"]).warning("Forbidden to echo")
         await dm_user(
             ctx["message"].author,
             "I don't have permission to send messages in the "

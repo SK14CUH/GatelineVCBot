@@ -1,6 +1,5 @@
 import asyncio
 import os
-import traceback
 from datetime import datetime
 from copy import deepcopy
 from math import ceil
@@ -12,20 +11,22 @@ import cfg
 import discord
 import translate
 import utils
-from utils import log
+from utils import logger
 
 import roman
 
 
+rootlogger = logger()
+
 @utils.func_timer()
 def lock_channel_request(channel, offset=0):
     cfg.CURRENT_REQUESTS[channel.id] = time() + offset
-    # print("Locking", channel.id, cfg.CURRENT_REQUESTS)
+    logger(channel.guild).info("Locking channel %s (current requests: %s)", channel.id, cfg.CURRENT_REQUESTS)
 
 
 @utils.func_timer()
 def channel_is_requested(channel):
-    # print("Checking", channel.id, cfg.CURRENT_REQUESTS)
+    logger(channel.guild).info("Checking channel %s (current requests: %s)", channel.id, cfg.CURRENT_REQUESTS)
     channel_age = datetime.utcnow().timestamp() - channel.created_at.timestamp()
     if channel_age < 5:
         return True
@@ -41,7 +42,7 @@ def unlock_channel_request(channel):
         del cfg.CURRENT_REQUESTS[channel.id]
     except KeyError:
         pass
-    # print("Unlocking", channel.id, cfg.CURRENT_REQUESTS)
+    logger(channel.guild).info("Unlocking channel %s (current requests: %s)", channel.id, cfg.CURRENT_REQUESTS)
 
 
 @utils.func_timer()
@@ -356,7 +357,7 @@ async def update_text_channel_role(guild, member, channel, mode):
 @utils.func_timer()
 async def dm_user(user, msg, embed=None, error=True):
     if user is None:
-        log("Failed to DM unknown user.")
+        rootlogger.error("Tried to DM an unknown user.")
         return
 
     if user.dm_channel is None:
@@ -365,7 +366,7 @@ async def dm_user(user, msg, embed=None, error=True):
     try:
         last_message = await user.dm_channel.history(limit=1).flatten()
     except discord.errors.Forbidden:
-        log("Forbidden to get user dm_history {}".format(user.id))
+        rootlogger.warning("Forbidden to get user dm_history %s", user.id)
         return
 
     if len(last_message) > 0:
@@ -380,7 +381,7 @@ async def dm_user(user, msg, embed=None, error=True):
         if error:
             cfg.DM_ERROR_MESSAGES[m.id] = time()
     except discord.errors.Forbidden:
-        log("Forbidden to DM user {}".format(user.id))
+        rootlogger.warning("Forbidden to DM user %s", user.id)
 
 
 @utils.func_timer()
@@ -396,7 +397,7 @@ async def echo(msg, channel, user=None):
         try:
             await channel.send(c)
         except discord.errors.Forbidden:
-            log("Forbidden to echo", channel.guild)
+            logger(channel.guild).warning("Forbidden to echo")
             if user:
                 await dm_user(
                     user,
@@ -405,13 +406,12 @@ async def echo(msg, channel, user=None):
                 )
             return False
         except AttributeError:
-            log("Can't echo to voice channel", channel.guild)
+            logger(channel.guild).warning("Can't echo to voice channel")
             if user and isinstance(channel, discord.VoiceChannel):
                 await dm_user(user, c)
             return False
         except Exception:
-            log("Failed to echo", channel.guild)
-            print(traceback.format_exc())
+            logger(channel.guild).exception("Failed to echo")
             return False
     return True
 
@@ -449,6 +449,7 @@ async def blind_echo(msg, guild):
 
 @utils.func_timer()
 async def admin_log(msg, client, important=False):
+    rootlogger.warning("**Bot Admin Log Sent to %s, check DMs**", cfg.CONFIG["admin_id"])
     admin = client.get_user(cfg.CONFIG["admin_id"])
     if admin.dm_channel is None:
         await admin.create_dm()
@@ -468,13 +469,14 @@ async def log_timings(client, highlight):
     text = ""
     if highlight is not None:
         text = "**{0}** took {1:.2f}s".format(highlight, cfg.TIMINGS[highlight])
-    log(text.replace("**", ""))
+    rootlogger.warning(text.replace("**", ""))
     text += "\n" + utils.format_timings()
     await admin_log(text, client)
 
 
 @utils.func_timer()
 async def server_log(guild, msg, msg_level, settings=None):
+    #logging.info("**Server Log Sent to %s, check server**", guild.id)
     if settings is None:
         settings = utils.get_serv_settings(guild)
     if "logging" not in settings or settings["logging"] is False:
@@ -494,10 +496,9 @@ async def server_log(guild, msg, msg_level, settings=None):
         msg = msg.replace("➕", "＋")  # Make the default plus sign more visible
         await channel.send(msg)
     except discord.errors.Forbidden:
-        log("Forbidden to log", guild)
+        logger(guild).warning("Forbidden to log")
     except Exception:
-        log("Failed to log", guild)
-        print(traceback.format_exc())
+        logger(guild).exception("Failed to log")
 
     return
 
@@ -832,11 +833,11 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
             previously_unsuccessful_name = channel.name
 
         if cname != previously_unsuccessful_name and cname != channel.name:
-            log("{0}  Renaming {1}  to  {2}".format(str(channel.id)[-4:], channel.name, cname), guild)
+            logger(guild).info("%s  Renaming %s  to  %s", str(channel.id)[-4:], channel.name, cname)
             try:
                 await channel.edit(name=cname)
             except discord.errors.Forbidden:
-                log("Cannot rename channel {}: Missing permissions".format(channel.id), guild)
+                logger(guild).warning("Cannot rename channel %s: Missing permissions", channel.id)
                 await blind_echo(
                     ":warning: **Error!** I don't have permission to rename channel `{}`{}".format(
                         channel.id, ' in the "{}" category'.format(channel.category) if channel.category else ""
@@ -844,7 +845,7 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
                     guild,
                 )
             except discord.errors.HTTPException as e:
-                log("Cannot rename channel {}: {}".format(channel.id, e.text), guild)
+                logger(guild).error("Cannot rename channel %s: %s", channel.id, e.text)
 
             if channel.name != cname:
                 # Template/game/user name contains illegal characters, store attempted name for future comparison.
@@ -924,7 +925,7 @@ async def create_secondary(guild, primary, creator, private=False):
 
     # Double check creator is still in primary in attempt to solve infinite creation bug.
     if creator not in primary.members:
-        log("{} no longer in primary".format(creator.display_name), guild)
+        logger(guild).error("%s no longer in primary", creator.display_name)
         return
 
     # Check we're allowed to make the channel
@@ -932,10 +933,7 @@ async def create_secondary(guild, primary, creator, private=False):
         return
     elif not check_primary_permissions(primary, guild.me):
         lock_user_request(creator)
-        log(
-            "{} ({}) tried creating a channel where I don't have permissions".format(creator.display_name, creator.id),
-            guild,
-        )
+        logger(guild).warning("%s (%s) tried creating a channel where I don't have permissions", creator.display_name, creator.id)
         msg = "{} ❌ You tried creating a channel where I don't have the right permissions.".format(creator.mention)
         server_contact = guild.get_member(settings["server_contact"])
         msg += "\n\nPlease make sure I have the following permissions"
@@ -964,7 +962,7 @@ async def create_secondary(guild, primary, creator, private=False):
         abuse_count = detect_abuse(creator)
         if abuse_count >= cfg.ABUSE_THRESHOLD:
             if abuse_count == cfg.ABUSE_THRESHOLD:
-                log("{} ({}) is creating channels too quickly".format(creator.display_name, creator.id), guild)
+                logger(guild).warning("%s (%s) is creating channels too quickly", creator.display_name, creator.id)
                 await dm_user(
                     creator,
                     ":warning: **Please slow down.** :warning:\n"
@@ -1043,7 +1041,7 @@ async def create_secondary(guild, primary, creator, private=False):
         return
     except discord.errors.HTTPException as e:
         if "Maximum number of channels in category reached" in e.text:
-            log("Failed to create channel for {}: Max channels reached".format(creator.display_name), guild)
+            logger(guild).warning("Failed to create channel for %s: Max channels reached", creator.display_name)
             await dm_user(
                 creator,
                 ":warning: Sorry, I was unable to create a channel for you as the maximum number of channels in that "
@@ -1054,8 +1052,8 @@ async def create_secondary(guild, primary, creator, private=False):
             lock_user_request(creator)
             return
         else:
-            raise e
-    log("{}  Creating channel for {}".format(str(c.id)[-4:], creator.display_name), guild)
+            logger(guild).exception()
+    logger(guild).info("%s  Creating channel for %s", str(c.id)[-4:], creator.display_name)
     utils.permastore_secondary(c.id)
     lock_channel_request(c)
     settings = utils.get_serv_settings(guild)
@@ -1084,13 +1082,13 @@ async def create_secondary(guild, primary, creator, private=False):
     except discord.errors.Forbidden:
         # No idea why it sometimes throws this, seems like a bug.
         # If it can create channels, it certainly has permission to move them.
-        log("Warning: Unable to set channel position {}".format(c.id), guild)
+        logger(guild).warning("Unable to set channel position %s", c.id)
 
     # Move user
     try:
         await creator.move_to(c)
     except discord.errors.HTTPException as e:
-        log("Failed to move user {}: {}".format(creator.display_name, e.text), guild)
+        logger(guild).warning("Failed to move user %s: %s", creator.display_name, e.text)
         lock_user_request(creator)
         return c
 
@@ -1144,7 +1142,7 @@ async def create_secondary(guild, primary, creator, private=False):
     if creator in c.members:
         unlock_channel_request(c)
     else:
-        log("{}  Still trying to move {}".format(str(c.id)[-4:], creator.display_name), guild)
+        logger(guild).warning("%s  Still trying to move %s", str(c.id)[-4:], creator.display_name)
         lock_channel_request(c, 20)
         lock_user_request(creator, 20)
 
@@ -1157,14 +1155,14 @@ async def delete_secondary(guild, channel):
         return
     lock_channel_request(channel)
 
-    log("{}  Deleting {}".format(str(channel.id)[-4:], channel.name), guild)
+    logger(guild).info("%s  Deleting %s", str(channel.id)[-4:], channel.name)
     cid = channel.id
     try:
         await channel.delete()
     except discord.errors.NotFound:
         pass
     except discord.errors.Forbidden:
-        log("Forbidden to delete channel {} in guild {}".format(channel.id, guild.id), guild)
+        logger(guild).warning("Forbidden to delete channel %s", channel.id)
         await blind_echo(
             ":warning: **Error!** I don't have permission to delete channel `{}`{}".format(
                 channel.id, ' in the "{}" category'.format(channel.category) if channel.category else ""
@@ -1173,9 +1171,8 @@ async def delete_secondary(guild, channel):
         )
         lock_channel_request(channel, 10)
     except Exception:
-        log("Failed to delete channel {} in guild {}".format(channel.id, guild.id), guild)
+        logger(guild).exception("Failed to delete channel %s", channel.id)
         lock_channel_request(channel, 10)
-        print(traceback.format_exc())
     else:
         settings = utils.get_serv_settings(guild)
         for p in settings["auto_channels"]:
@@ -1227,7 +1224,7 @@ async def remove_broken_channels(guild):
                 try:
                     await v.delete()
                 except discord.errors.Forbidden:
-                    log("Forbidden to delete channel {} in guild {}".format(v.id, guild.id), guild)
+                    logger(guild).warning("Forbidden to delete channel %s", v.id)
                     await blind_echo(
                         ":warning: **Error!** I don't have permission to delete channel `{}`{}".format(
                             v.id, ' in the "{}" category'.format(v.category) if v.category else ""
@@ -1235,13 +1232,9 @@ async def remove_broken_channels(guild):
                         guild,
                     )
                     lock_channel_request(v, 10)
-                except discord.errors.NotFound:
-                    log("Failed to delete channel {} in guild {} (NotFound)".format(v.id, guild.id), guild)
-                    lock_channel_request(v, 10)
                 except Exception:
-                    log("Failed to delete channel {} in guild {}".format(v.id, guild.id), guild)
+                    logger(guild).exception("Failed to delete channel %s", v.id)
                     lock_channel_request(v, 10)
-                    print(traceback.format_exc())
                 unlock_channel_request(v)
 
     text_channels = [x for x in guild.channels if isinstance(x, discord.TextChannel)]
@@ -1260,7 +1253,7 @@ async def remove_broken_channels(guild):
                 try:
                     await c.delete()
                 except discord.errors.Forbidden:
-                    log("Failed to delete text channel {} in guild {}".format(c.id, guild.id), guild)
+                    logger(guild).error("Failed to delete text channel %s", c.id)
                     cfg.IGNORE_FOR_DELETION.append(c.id)
                 except discord.errors.NotFound:
                     pass
@@ -1277,7 +1270,7 @@ async def remove_broken_channels(guild):
                 try:
                     await r.delete()
                 except discord.errors.Forbidden:
-                    log("Failed to delete role {} in guild {}".format(r.id, guild.id), guild)
+                    logger(guild).error("Failed to delete role %s", r.id)
                     cfg.IGNORE_FOR_DELETION.append(r.id)
                 except discord.errors.NotFound:
                     pass
@@ -1292,9 +1285,12 @@ async def set_server_icon_call_active(guild):
     callmode = servicons["active_icon_enabled"]
 
     if callmode is False:
-        await guild.edit(icon=iconfile)
-        utils.set_serv_icon_mode(guild, True)
-        log("Set server icon to call active")
+        try:
+            await guild.edit(icon=iconfile)
+            utils.set_serv_icon_mode(guild, True)
+            logger(guild).info("Set server icon to call active successfully")
+        except Exception:
+            logger(guild).exception("Could not set server icon")
 
 @utils.func_timer()
 async def set_server_icon_no_calls(guild):
@@ -1306,6 +1302,9 @@ async def set_server_icon_no_calls(guild):
     callmode = servicons["active_icon_enabled"]
 
     if callmode is False:
-        await guild.edit(icon=iconfile)
-        utils.set_serv_icon_mode(guild, False)
-        log("Set server icon to no calls")
+        try:
+            await guild.edit(icon=iconfile)
+            utils.set_serv_icon_mode(guild, False)
+            logger(guild).info("Set server icon to no calls successfully")
+        except Exception:
+            logger(guild).exception("Could not set server icon")

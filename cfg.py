@@ -6,6 +6,8 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 SCRIPT_DIR = SCRIPT_DIR + ("/" if not SCRIPT_DIR.endswith("/") else "")
 INVITE_LINK = "https://discordapp.com/api/oauth2/authorize?client_id=@@CID@@&permissions=286280784&scope=bot"
 
+LOGGERS = {}
+
 # Store settings so we don't have to read them from drive all the time
 GUILD_SETTINGS = {}
 PREV_GUILD_SETTINGS = {}

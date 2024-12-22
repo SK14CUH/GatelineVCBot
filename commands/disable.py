@@ -1,6 +1,6 @@
 import utils
-from functions import log
 from commands.base import Cmd
+from utils import logger
 
 help_text = [
     [
@@ -20,7 +20,7 @@ async def execute(ctx, params):
     if not settings["enabled"]:
         return False, "Already disabled. Use '{}enable' to turn on.".format(ctx["print_prefix"])
     else:
-        log("Disabling", guild)
+        logger(guild).info("Disabling")
         settings["enabled"] = False
         utils.set_serv_settings(guild, settings)
         return True, "Disabling auto voice channels. Turn on again with '{}enable'.".format(ctx["print_prefix"])

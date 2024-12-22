@@ -1,7 +1,6 @@
 import discord
-import traceback
 from functions import echo, dm_user, esc_md
-from utils import log
+from utils import logger
 from commands.base import Cmd
 
 help_text = [
@@ -47,7 +46,7 @@ async def execute(ctx, params):
             try:
                 await channel.send(embed=e)
             except discord.errors.Forbidden:
-                log("Forbidden to echo", channel.guild)
+                logger(channel.guild).warning("Forbidden to echo")
                 await dm_user(
                     author,
                     "I don't have permission to send messages in the "
@@ -90,7 +89,7 @@ async def execute(ctx, params):
                     try:
                         await channel.send(content=p[0].replace("Commands --**", "Commands --**\n"), embed=embed)
                     except discord.errors.Forbidden:
-                        log("Forbidden to echo", channel.guild)
+                        logger(channel.guild).warning("Forbidden to echo")
                         await dm_user(
                             author,
                             "I don't have permission to send messages in the "
@@ -138,7 +137,7 @@ async def execute(ctx, params):
                 try:
                     await channel.send(content=content, embed=e)
                 except discord.errors.Forbidden:
-                    log("Forbidden to echo", channel.guild)
+                    logger(channel.guild).warning("Forbidden to echo")
                     await dm_user(
                         author,
                         "I don't have permission to send messages in the "
@@ -146,8 +145,7 @@ async def execute(ctx, params):
                     )
                     return False, "NO RESPONSE"
                 except Exception:
-                    log("Failed to echo", channel.guild)
-                    print(traceback.format_exc())
+                    logger(channel.guild).exception("Failed to echo")
                     return False, "NO RESPONSE"
 
             return True, "NO RESPONSE"
@@ -205,7 +203,7 @@ async def execute(ctx, params):
             try:
                 await channel.send(embed=e)
             except discord.errors.Forbidden:
-                log("Forbidden to echo", channel.guild)
+                logger(channel.guild).warning("Forbidden to echo")
                 await dm_user(
                     author,
                     "I don't have permission to send messages in the "

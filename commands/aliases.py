@@ -1,8 +1,7 @@
 import discord
-import traceback
 import functions as func
 from commands.base import Cmd
-from utils import log
+from utils import logger
 
 help_text = [
     [
@@ -34,7 +33,7 @@ async def execute(ctx, params):
     try:
         await channel.send(embed=e)
     except discord.errors.Forbidden:
-        log("Forbidden to echo", channel.guild)
+        logger(channel.guild).warning("Forbidden to echo")
         await func.dm_user(
             author,
             "I don't have permission to send messages in the "
@@ -42,8 +41,7 @@ async def execute(ctx, params):
         )
         return False, "NO RESPONSE"
     except Exception:
-        log("Failed to echo", channel.guild)
-        print(traceback.format_exc())
+        logger(channel.guild).exception("Failed to echo")
         return False, "NO RESPONSE"
 
     return True, "NO RESPONSE"

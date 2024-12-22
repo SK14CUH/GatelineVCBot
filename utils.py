@@ -4,7 +4,7 @@ import functools
 import json
 import operator
 import os
-import traceback
+import logging
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
@@ -18,6 +18,10 @@ import cfg
 import pytz
 
 
+# logger() is not yet defined
+rootlogger = logging.getLogger("GatelineVCBot.Root")
+
+
 def func_timer(threshold=0.5):
     def duration(func):
         @contextmanager
@@ -26,7 +30,7 @@ def func_timer(threshold=0.5):
             yield
             duration = time() - start_ts
             if duration >= threshold:
-                print("TIMER: {0:.3f}s '{1}' called by '{2}'".format(duration, func.__name__, parent_func))
+                rootlogger.debug("TIMER: {0:.3f}s '{1}' called by '{2}'", duration, func.__name__, parent_func)
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -58,16 +62,6 @@ def format_timings():
 
 
 @func_timer()
-def log(msg, guild=None):
-    text = datetime.now(pytz.timezone(cfg.CONFIG["log_timezone"])).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    if guild:
-        text += " [{}]{}".format(guild.name, "<{}>".format(guild.shard_id) if guild.shard_id != 0 else "")
-    text += "\n    "
-    text += str(msg)
-    print(text)
-
-
-@func_timer()
 def read_json(fp):
     with open(fp, "r") as f:
         data = json.load(f)
@@ -83,7 +77,7 @@ def write_json(fp, data, indent=1):
     try:
         s = json.dumps(data, indent=indent, separators=(",", ":"), sort_keys=True)
     except:
-        traceback.print_exc()
+        rootlogger.exception()
     else:
         with open(fp, "w") as f:
             f.write(s)
@@ -94,10 +88,7 @@ def write_json(fp, data, indent=1):
 def get_config():
     cf = os.path.join(cfg.SCRIPT_DIR, "config.json")
     if not os.path.exists(cf):
-        print(
-            "Config file doesn't exist!\n"
-            "You need to create a 'config.json' file next to this script and fill in some details like your token."
-        )
+        rootlogger.critical("Config file doesn't exist!")
         import sys
 
         sys.exit(0)
@@ -108,7 +99,7 @@ def get_config():
 def set_config(data):
     cf = os.path.join(cfg.SCRIPT_DIR, "config.json")
     if not os.path.exists(cf):
-        print("Config file doesn't exist!")
+        rootlogger.critical("Config file doesn't exist!")
         import sys
 
         sys.exit(0)
@@ -118,13 +109,22 @@ def set_config(data):
 @func_timer()
 def update_server_location():
     try:
-        print("Getting server location...")
+        rootlogger.info("Getting server location...")
         j = json.loads(get("http://ip-api.com/json/").text)
         cfg.SERVER_LOCATION = "{}, {}, {}".format(j["city"], j["region"], j["country"])
-        print(cfg.SERVER_LOCATION)
+        rootlogger.info(cfg.SERVER_LOCATION)
     except:
-        print("Failed to update server location")
-        print(traceback.format_exc())
+        rootlogger.exception("Failed to update server location")
+
+
+@func_timer()
+def logger(guild=None):
+    if guild is None:
+        return logging.getLogger("GatelineVCBot.Root")
+    else:
+        loggername = guild.id
+    
+    return cfg.LOGGERS[loggername]
 
 
 @func_timer()
@@ -244,7 +244,7 @@ def permastore_secondary(cid):
             with open(os.path.join(cfg.SCRIPT_DIR, "secondaries.txt"), "a") as f:
                 f.write(str(cid) + "\n")
         except:
-            print("Failed to remember {}".format(cid))
+            rootlogger.error("Failed to remember %s", cid)
         else:
             success = True
 
@@ -469,13 +469,9 @@ def full_strip(s):
 
 @func_timer()
 def upsidedown(s):
-    try:
-        import upsidedown as _upsidedown
+    import upsidedown as _upsidedown
 
-        return "".join((_upsidedown.transform(s)))
-    except ImportError:
-        log("Cannot import upsidedown")
-        return s
+    return "".join((_upsidedown.transform(s)))
 
 
 @func_timer()

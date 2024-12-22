@@ -10,7 +10,8 @@ import functions as func
 import psutil
 import pytz
 import utils
-from functions import echo, log
+from functions import echo
+from utils import logger
 
 
 async def admin_command(cmd, ctx):
@@ -212,7 +213,7 @@ async def admin_command(cmd, ctx):
             settings = utils.get_serv_settings(g)
             settings["enabled"] = False
             utils.set_serv_settings(g, settings)
-            log("Force Disabling", g)
+            logger(g).info("Force Disabling")
             await func.react(message, "✅")
         except:
             await channel.send(traceback.format_exc())
@@ -224,7 +225,7 @@ async def admin_command(cmd, ctx):
             settings = utils.get_serv_settings(g)
             settings["enabled"] = True
             utils.set_serv_settings(g, settings)
-            log("Force Enabling", g)
+            logger(g).info("Force Enabling")
             await func.react(message, "✅")
         except:
             await channel.send(traceback.format_exc())
@@ -389,7 +390,7 @@ async def admin_command(cmd, ctx):
             await func.react(message, "❌")
         else:
             await func.react(message, "✅")
-            log("{0}  Force Renaming to {1}".format(cid[-4:], new_name), c.guild)
+            logger(g).info("%s  Force Renaming to %s", cid[-4:], new_name)
 
     if cmd == "forget":
         try:

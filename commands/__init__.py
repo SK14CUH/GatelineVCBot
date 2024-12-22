@@ -1,7 +1,8 @@
 import discord
 import utils
 from difflib import SequenceMatcher
-from functions import admin_log, get_secondaries, log
+from functions import admin_log, get_secondaries
+from utils import logger
 
 from . import (
     alias,
@@ -22,7 +23,7 @@ from . import (
     kick,
     limit,
     listroles,
-    logging,
+    server_logging,
     name,
     nick,
     ping,
@@ -65,7 +66,7 @@ commands = {
     "limit": limit.command,
     "listroles": listroles.command,
     "lock": limit.command,
-    "logging": logging.command,
+    "logging": server_logging.command,
     "name": name.command,
     "nick": nick.command,
     "ping": ping.command,
@@ -160,12 +161,12 @@ async def run(c, ctx, params):
             ctx["guild"].id, type(e).__name__, c, " ".join(params)
         )
         await admin_log(error_text, ctx["client"])
-        log(error_text)
+        logger(ctx["guild"]).exception(error_text)
         import traceback
 
         error_text = traceback.format_exc()
         await admin_log(error_text, ctx["client"])
-        log(error_text)
+        logger(ctx["guild"]).exception(error_text)
         return False, (
             "A `{}` error occured :(\n"
             "Please ensure I have the correct permissions, check `{}help {}` for the correct command usage, "
