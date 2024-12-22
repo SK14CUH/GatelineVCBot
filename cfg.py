@@ -9,6 +9,7 @@ INVITE_LINK = "https://discordapp.com/api/oauth2/authorize?client_id=@@CID@@&per
 # Store settings so we don't have to read them from drive all the time
 GUILD_SETTINGS = {}
 PREV_GUILD_SETTINGS = {}
+GUILD_SERVER_ICONS = {}
 
 # Track writes in progress so we don't exit during a write operation
 WRITES_IN_PROGRESS = []

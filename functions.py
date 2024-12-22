@@ -1281,3 +1281,31 @@ async def remove_broken_channels(guild):
                     cfg.IGNORE_FOR_DELETION.append(r.id)
                 except discord.errors.NotFound:
                     pass
+
+@utils.func_timer()
+async def set_server_icon_call_active(guild):
+    servicons = await utils.get_serv_icons(guild)
+    if not servicons:
+        return
+
+    iconfile = servicons["call_active"]
+    callmode = servicons["active_icon_enabled"]
+
+    if callmode is False:
+        await guild.edit(icon=iconfile)
+        utils.set_serv_icon_mode(guild, True)
+        log("Set server icon to call active")
+
+@utils.func_timer()
+async def set_server_icon_no_calls(guild):
+    servicons = await utils.get_serv_icons(guild)
+    if not servicons:
+        return
+
+    iconfile = servicons["no_calls"]
+    callmode = servicons["active_icon_enabled"]
+
+    if callmode is False:
+        await guild.edit(icon=iconfile)
+        utils.set_serv_icon_mode(guild, False)
+        log("Set server icon to no calls")

@@ -157,6 +157,54 @@ def get_serv_settings(guild, force_refetch=False):
     cfg.PREV_GUILD_SETTINGS[guild.id] = data
     return cfg.GUILD_SETTINGS[guild.id]
 
+@func_timer()
+async def get_serv_icons(guild, force_refetch=False):
+    if guild.id in cfg.GUILD_SERVER_ICONS and not force_refetch:
+        return cfg.GUILD_SERVER_ICONS[guild.id]
+    
+    data = {}
+    settings = get_serv_settings(guild)
+    callactive = settings["server_icon_call_active"]
+    nocalls = settings["server_icon_no_calls"]
+
+    # Load 'call active' icons
+    if not callactive:
+        # If there is no 'call active' icon set then disable icon changing for this server
+        return
+    else:
+        # Load the icon into memory
+        fp = os.path.join(cfg.SCRIPT_DIR, "server_icons", callactive)
+        with open(fp, 'rb') as f:
+            data["call_active"] = f.read()
+    
+    # If there is no 'no calls' icon set then get the current icon
+    if not nocalls:
+        guildicon = guild.icon_url
+        data["no_calls"] = await guildicon.read()
+    else:
+        # Load the icon into memory
+        fp = os.path.join(cfg.SCRIPT_DIR, "server_icons", nocalls)
+        with open(fp, 'rb') as f:
+            data["no_calls"] = f.read()
+
+    # Make sure to check the returned object for missing files
+    # If so then they either failed to load or icon changing is disabled for that server
+    data["active_icon_enabled"] = False
+    data["lastchanged"] = 0 # We haven't changed it yet
+    cfg.GUILD_SERVER_ICONS[guild.id] = data
+    return cfg.GUILD_SERVER_ICONS[guild.id]
+
+@func_timer()
+def set_serv_icon_mode(guild, mode=None):
+    if not cfg.GUILD_SERVER_ICONS[guild.id]:
+        return
+    
+    if mode == None:
+        cfg.GUILD_SERVER_ICONS[guild.id]["active_icon_enabled"] = not cfg.GUILD_SERVER_ICONS[guild.id]["active_icon_enabled"]
+    else:
+        cfg.GUILD_SERVER_ICONS[guild.id]["active_icon_enabled"] = mode
+    
+    cfg.GUILD_SERVER_ICONS[guild.id]["lastchanged"] = datetime.now(pytz.utc)
 
 @func_timer()
 def set_serv_settings(guild, settings):
@@ -266,9 +314,16 @@ def get_user_in_channel(name, channel):
 def num_active_channels(guilds):
     num_channels = 0
     for g in guilds:
-        settings = get_serv_settings(g)
-        for p in settings["auto_channels"]:
-            num_channels += len(settings["auto_channels"][p]["secondaries"])
+        num_channels += num_active_channels_per_guild(g)
+    return num_channels
+
+
+@func_timer()
+def num_active_channels_per_guild(guild):
+    num_channels = 0
+    settings = get_serv_settings(guild)
+    for p in settings["auto_channels"]:
+        num_channels += len(settings["auto_channels"][p]["secondaries"])
     return num_channels
 
 

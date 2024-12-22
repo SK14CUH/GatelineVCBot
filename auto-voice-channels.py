@@ -634,7 +634,7 @@ async def analytics(client):
             await func.log_timings(client, fn_name)
 
 
-@loop(minutes=2)
+@loop(minutes=10)
 async def update_status(client):
     await client.wait_until_ready()
 
@@ -645,7 +645,14 @@ async def update_status(client):
             prefix = "@me "
             if len(guilds) == 1 and guilds[0].id in cfg.PREFIXES:
                 prefix = cfg.PREFIXES[guilds[0].id]
-            nc = utils.num_active_channels(guilds)
+            nc = 0
+            for guild in guilds:
+                nc_per_server = utils.num_active_channels_per_guild(guild)
+                nc += nc_per_server
+                if nc_per_server > 0:
+                    await func.set_server_icon_call_active(guild)
+                else:
+                    await func.set_server_icon_no_calls(guild)
             text = "{}help | {} channel{}".format(prefix, nc, ("s" if nc != 1 else ""))
         else:
             text = "🚧No guilds🚧"
@@ -1092,6 +1099,7 @@ async def on_voice_state_update(member, before, after):
     if after.channel:
         if after.channel.id in settings["auto_channels"]:
             await func.create_secondary(guild, after.channel, member)
+            await func.set_server_icon_call_active(guild) # Always enable the call icon when a new call starts
         elif after.channel.id in secondaries:
             if after.channel.name != "⌛":
                 await func.update_text_channel_role(guild, member, after.channel, "join")
