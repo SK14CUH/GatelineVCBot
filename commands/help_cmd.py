@@ -225,10 +225,7 @@ async def execute(ctx, params):
                 "```{{ROLE:601025860614750229 ?? {{ROLE:615086491235909643??[UK] // {{ROLE:607913610139664444??[DE] // "
                 "[EU]}}}}}}```\n"
                 "The spaces around the `??` and `//` improve readability but may not be desired if you do not want any "
-                "spaces around the result.\n\n"
-                "If you have a question or need any help setting up an expression, "
-                "please ask me in the [support server](https://discord.io/DotsBotsSupport). "
-                "I'd be happy to add any extra variables you need."
+                "spaces around the result."
             )
             await channel.send(embed=e)
             return True, "NO RESPONSE"
