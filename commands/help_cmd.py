@@ -40,7 +40,6 @@ async def execute(ctx, params):
                 "Start a votekick to remove someone from your channel.\n\n"
                 " ·  **<PREFIX>transfer `@USER`** - "
                 "Transfer ownership of your channel to someone else.\n\n"
-                " ·  **<PREFIX>invite** - Invite me to another server!\n\n"
                 " ·  **<PREFIX>help `command`** - Get more info about a particular command."
             ).format(esc_md(author.display_name))
             text = text.replace("<PREFIX>", ctx["print_prefix"])
