@@ -96,8 +96,7 @@ def get_config():
     if not os.path.exists(cf):
         print(
             "Config file doesn't exist!\n"
-            "You need to create a 'config.json' file next to this script and fill in some details like your token.\n"
-            "Read the instructions on GitHub: https://github.com/gregzaal/Auto-Voice-Channels"
+            "You need to create a 'config.json' file next to this script and fill in some details like your token."
         )
         import sys
 

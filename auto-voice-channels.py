@@ -849,7 +849,7 @@ async def on_message(message):
         return
 
     if not message.guild:  # DM
-        if "help" in message.content and len(message.content) <= len("@Auto Voice Channels help"):
+        if "help" in message.content and len(message.content) <= len("@Adam but Robotic help"):
             await message.channel.send(
                 "Sorry I don't respond to commands in DMs, "
                 "you need to type the commands in a channel in your server.\n"

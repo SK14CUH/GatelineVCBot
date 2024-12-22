@@ -169,8 +169,7 @@ async def run(c, ctx, params):
         return False, (
             "A `{}` error occured :(\n"
             "Please ensure I have the correct permissions, check `{}help {}` for the correct command usage, "
-            "and then try again. \nIf that still doesn't help, try asking in the support server: "
-            "https://discord.gg/qhMrz6u".format(type(e).__name__, ctx["print_prefix"], c)
+            "and then try again.".format(type(e).__name__, ctx["print_prefix"], c)
         )
 
     if r is None:
@@ -185,8 +184,7 @@ async def run(c, ctx, params):
         return False, (
             "An unknown error occured :(\n"
             "Please ensure I have the correct permissions, check `{}help {}` for the correct command usage, "
-            "and then try again. \nIf that still doesn't help, try asking in the support server: "
-            "https://discord.gg/qhMrz6u".format(ctx["print_prefix"], c)
+            "and then try again.".format(ctx["print_prefix"], c)
         )
 
     return r

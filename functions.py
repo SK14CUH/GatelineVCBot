@@ -950,8 +950,7 @@ async def create_secondary(guild, primary, creator, private=False):
         msg += "- **Move members**\n\n"
         if server_contact is not None and server_contact != creator:
             msg += "If you are not an admin/manager of this server, "
-            msg += "{} might be able to help you.\n".format(server_contact.mention)
-        msg += "If you need any help, you can join my support server: <https://discord.gg/qhMrz6u>.\n\n"
+            msg += "{} might be able to help you.\n\n".format(server_contact.mention)
         msg += "This message will repeat every 5 minutes if the problem is not resolved. "
         msg += "To stop this, either fix the issue or leave the voice channel causing the problem."
         await blind_echo(msg, guild)

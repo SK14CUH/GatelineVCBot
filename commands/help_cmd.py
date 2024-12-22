@@ -20,7 +20,7 @@ async def execute(ctx, params):
         support_server_id = 601015720200896512
         if not ctx["admin"] and ctx["guild"].id != support_server_id:
             e = discord.Embed(color=discord.Color.from_rgb(205, 220, 57))
-            e.title = "Auto Voice Channels"
+            e.title = "Adam (the robotic version)"
             e.description = (
                 "I'm a bot that allows you to dynamically and infinitely create voice channels as you need them, "
                 "and automatically delete them as soon as they are no longer used.\n\n"
@@ -61,8 +61,7 @@ async def execute(ctx, params):
             docs = f.read()
         sections = docs.split("** **")
         for i, s in enumerate(sections):
-            s = s.replace("@Auto Voice Channels ", "@{} ".format(ctx["message"].guild.me.display_name))
-            s = s.replace("@pixaal", author.mention)
+            s = s.replace("@Adam but Robotic ", "@{} ".format(ctx["message"].guild.me.display_name))
             s = s.replace(" :)", " :slight_smile:")
             s = s.replace("Change the prefix of the bot (default is", "Change the prefix of the bot (currently")
             if s.startswith("\n**-- Commands --**\n") and can_embed:

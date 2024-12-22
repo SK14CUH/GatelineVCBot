@@ -1,10 +1,6 @@
-# Auto-Voice-Channels
+# Auto-Voice-Channels (Adam's Gateline Edit)
 
 ### A Discord bot that automatically creates voice channels as they are needed.
-
-- [Public bot invite link](https://discordapp.com/api/oauth2/authorize?client_id=479393422705426432&permissions=286280784&scope=bot)
-- [Beta bot invite link](https://discordapp.com/api/oauth2/authorize?client_id=675405085752164372&permissions=286280784&scope=bot)
-- [Discord server](https://discord.gg/HT6GNhJ)
 
 ## Requires:
 
@@ -22,8 +18,7 @@
 
 ### On Linux (Ubuntu/Debian):
 
-* Clone the repository: `git clone https://github.com/gregzaal/Auto-Voice-Channels.git`
-* Go to the directory: `cd Auto-Voice-Channels`
+* Go to the directory containing the bot's python scripts.
 * Install pip: `sudo apt-get -y install python3-pip`
 * Install venv: `pip3 install virtualenv`
 * Make venv: `python3 -m virtualenv bot-env`
@@ -31,7 +26,7 @@
 * Install requirements: `python3 -m pip install -r requirements.txt`
 * Create your application + bot here: <https://discordapp.com/developers/applications>
 * Enable both **Presence** and **Server Members** Privileged Gateway Intents in the Bot section.
-* Create a `config.json` file in the Auto-Voice-Channels folder and fill it in:
+* Create a `config.json` file in the bot's folder and fill it in:
   * `admin_id` is your personal [user ID](https://techswift.org/2020/04/22/how-to-find-your-user-id-on-discord/), for the bot to DM you errors and other important logs.
   * `client_id` is the bot application client ID.
   * `log_timezone` is for the time displayed in logs, see [this list](https://stackoverflow.com/questions/13866926/is-there-a-list-of-pytz-timezones).
@@ -67,9 +62,3 @@ If you absolutely want to run this bot on windows (e.g. for development testing)
 ### With Docker:
 
 If you want to use Docker, here's an image: https://github.com/vinanrra/Auto-Voice-Channels-Docker
-
-## Help:
-
-For **all** issues and questions you have, first ask in our [Support Server](https://discord.gg/HT6GNhJ). 99% of questions have been asked before and already have a solution available. Read the FAQ, #status channel, and pinned messages.
-
-If you're self-hosting and have an actual code bug to report, also first check in the Support Server for a solution and see if anyone else has the same problem. If someone can confirm your bug in their own self-hosted bot, then you may [open an issue](https://github.com/gregzaal/Auto-Voice-Channels/issues).
