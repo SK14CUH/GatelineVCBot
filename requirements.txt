@@ -5,3 +5,7 @@ psutil==5.6.7
 requests==2.22.0
 
 roman==3.3
+
+uvloop; platform_system != "Windows"
+
+upsidedown
