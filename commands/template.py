@@ -71,43 +71,36 @@ help_text = [
             '`""3w+caps: @@game_name@@""` ⇾ `WORLD OF WARCRAFT`\n'
             '`""acro: @@game_name@@""` ⇾ `WoW`',
         ),
-    ],
-    [
+        (" ·  `@@nato@@`", "Use the NATO Phonetic Alphabet (Alpha, Bravo, Charlie...) as the channel number."),
         (
-            "title",
-            "These extra variables are available to **💳 Gold** or **💎Sapphire** patrons only:\n"
-            "Become a patron here: https://patreon.com/pixaal",
-        ),
-        (" ·  `@@nato@@` - 💳 only", "Use the NATO Phonetic Alphabet (Alpha, Bravo, Charlie...) as the channel number."),
-        (
-            " ·  `[[random/word or phrase/selection]]` - 💳 only",
+            " ·  `[[random/word or phrase/selection]]`",
             "Pick a random word or phrase between the slashes when the channel is created. Use a back-slash (`\\`) "
             "instead of a forward-slash if you want it to select a random word every few minutes instead of only "
             "when the channel is created.",
         ),
         (
-            " ·  `{{EXPRESSION ?? TRUE // FALSE}}` - 💳 only",
+            " ·  `{{EXPRESSION ?? TRUE // FALSE}}`",
             "Advanced nestable conditional expressions. Use `<PREFIX>help expressions` for more info.",
         ),
         (
-            " ·  `@@num_playing@@` - 💎 only",
+            " ·  `@@num_playing@@`",
             "The number of users playing in the same game session. Uses the game's Rich Presence info if it's available, "
             "otherwise it makes a guess from the game activity of users in the voice chat.",
         ),
         (
-            " ·  `@@party_size@@` - 💎 only",
+            " ·  `@@party_size@@`",
             "The maximum number of players allowed in the game. Uses the game's Rich Presence info if it's available, "
             "otherwise it uses the channel's user limit. Defaults to `0` if no size is found. "
             "You may want to use the `{{RICH}}` expression to check if the current game uses Rich Presence.",
         ),
         (
-            " ·  `@@party_details@@` - 💎 only",
+            " ·  `@@party_details@@`",
             "The party details provided by Rich Presence if it's available, varies by game, "
             "usually the game mode, difficulty and/or mission name.\n"
             "Use `<PREFIX>channelinfo` to check your current party details.",
         ),
         (
-            " ·  `@@party_state@@` - 💎 only",
+            " ·  `@@party_state@@`",
             "The party state information provided by Rich Presence if it's available, varies by game, "
             "may be character played, team info, game mode, etc.\n"
             "Use `<PREFIX>channelinfo` to check your current party state.",

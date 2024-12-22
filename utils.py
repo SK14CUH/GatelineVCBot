@@ -453,7 +453,7 @@ def get_display_name(settings, user):
 
 
 @func_timer()
-def eval_expression(text, is_sapphire, creator, party, game_name):
+def eval_expression(text, creator, party, game_name):
     act = creator.activity
     variables = {
         "ROLE": [r.id for r in creator.roles],
@@ -465,17 +465,16 @@ def eval_expression(text, is_sapphire, creator, party, game_name):
         "LIVE_EXTERNAL": act and act.type == discord.ActivityType.streaming,
         "GAME": game_name,
     }
-    if is_sapphire:
-        try:
-            variables["PLAYERS"] = int(party["num_playing"]) if party else 0
-        except ValueError:
-            variables["PLAYERS"] = 0
-        try:
-            variables["MAX"] = int(party["size"]) if party else 0
-        except (ValueError, IndexError):
-            variables["MAX"] = 0
+    try:
+        variables["PLAYERS"] = int(party["num_playing"]) if party else 0
+    except ValueError:
+        variables["PLAYERS"] = 0
+    try:
+        variables["MAX"] = int(party["size"]) if party else 0
+    except (ValueError, IndexError):
+        variables["MAX"] = 0
 
-        variables["RICH"] = party["rich"] if party else False
+    variables["RICH"] = party["rich"] if party else False
 
     ops = [  # 2D list - can't use dict as it needs to be ordered
         ["<=", operator.le],

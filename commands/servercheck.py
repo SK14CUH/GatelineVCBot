@@ -8,7 +8,7 @@ help_text = [
         ("Usage:", "<PREFIX><COMMAND>"),
         (
             "Description:",
-            "Get information about this server, such as the voice channels I know about and the Patreon status.",
+            "Get information about this server, such as the voice channels I know about.",
         ),
     ]
 ]
@@ -39,10 +39,6 @@ async def execute(ctx, params):
     num_members = len(members)
     percent_members_online = len([m for m in members if m.status != discord.Status.offline]) / num_members * 100
     r += "**{}** non-bot members, {}% currently online\n".format(num_members, round(percent_members_online))
-    r += "Gold features active: **{}**\n".format("Yes" if func.is_gold(guild) else "No")
-    r += "Sapphire features active: {}\n".format(
-        ("**Yes** +private bot" if cfg.SAPPHIRE_ID is not None else "**Yes**") if func.is_sapphire(guild) else "**No**"
-    )
 
     r += "\n**Known Channels:**\n"
     for p in settings["auto_channels"]:

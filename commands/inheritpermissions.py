@@ -72,7 +72,6 @@ command = Cmd(
     execute=execute,
     help_text=help_text,
     params_required=1,
-    gold_required=False,
     admin_required=True,
     voice_required=True,
 )

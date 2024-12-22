@@ -16,11 +16,6 @@ from utils import log
 
 import roman
 
-try:
-    import patreon_info
-except ImportError:
-    patreon_info = None
-
 
 @utils.func_timer()
 def lock_channel_request(channel, offset=0):
@@ -489,12 +484,6 @@ async def server_log(guild, msg, msg_level, settings=None):
     if msg_level > log_level:
         return
 
-    if not is_gold(guild):
-        return
-
-    if msg_level == 3 and not is_sapphire(guild):
-        return
-
     try:
         channel = guild.get_channel(settings["logging"])
     except:
@@ -514,185 +503,11 @@ async def server_log(guild, msg, msg_level, settings=None):
 
 
 @utils.func_timer()
-async def check_patreon(force_update=False, client=None):
-    if patreon_info is None:
-        return
-
-    print("Checking Patreon...{}".format(" (F)" if force_update else ""))
-    previous_patrons = deepcopy(cfg.PATRONS)
-    patrons = patreon_info.fetch_patrons(force_update=force_update)
-
-    if client and previous_patrons and patrons != previous_patrons:
-        for p, r in patrons.items():
-            if p not in previous_patrons:
-                pu = client.get_user(p)
-                try:
-                    pn = pu.display_name
-                except AttributeError:
-                    pn = "<UNKNOWN>"
-                important = True if r in ["sapphire", "diamond"] else False
-                await admin_log("🎉 New {} patron! **{}** (`{}`)".format(cfg.TIER_ICONS[r], pn, p), client, important)
-                msg = (
-                    "🎉 **Thanks for your support!** 🎉\nTo activate your patron-exclusive features, "
-                    "simply run `@me power-overwhelming` in your server."
-                )
-                if r in ["sapphire", "diamond"]:
-                    msg += "\n\nGive me a few hours to set up your private "
-                    msg += "bot" if r == "sapphire" else "server"
-                    msg += ", and then I'll contact you in the support server to make the switch."
-                    if r == "diamond":
-                        msg += (
-                            "\nPlease let me know whether you prefer a server in Europe, "
-                            "North America or Asia by replying to this message."
-                        )
-                await dm_user(pu, msg)
-
-        for p, r in previous_patrons.items():
-            if p not in patrons and p != cfg.CONFIG["admin_id"]:
-                pu = client.get_user(p)
-                try:
-                    pn = pu.display_name
-                except AttributeError:
-                    pn = "<UNKNOWN>"
-                important = True if r in ["sapphire", "diamond"] else False
-                await admin_log("😱 Lost {} patron! **{}** (`{}`)".format(cfg.TIER_ICONS[r], pn, p), client, important)
-
-    patreon_info.update_patron_servers(patrons)
-    print("{} patrons".format(len(patrons)))
-
-
-@utils.func_timer()
-def is_gold(guild):
-    if patreon_info is None:
-        return True
-
-    gold_servers = [
-        607246684367618049,  # T4
-    ]
-    if isinstance(guild, int):
-        guild_id = guild
-    else:
-        guild_id = guild.id
-    gold_servers += cfg.GOLD_SERVERS
-    return guild_id in gold_servers or is_sapphire(guild_id)
-
-
-@utils.func_timer()
-def is_sapphire(guild):
-    if patreon_info is None:
-        return True
-
-    sapphire_servers = [
-        332246283601313794,  # Salt Sanc
-        601015720200896512,  # Dots Bots
-        460459401086763010,  # T1
-        607246539101831168,  # T2
-    ]
-    if isinstance(guild, int):
-        guild_id = guild
-    else:
-        guild_id = guild.id
-    sapphire_servers += cfg.SAPPHIRE_SERVERS
-    return guild_id in sapphire_servers
-
-
-@utils.func_timer()
-def get_sapphire_id(guild):
-    for s, sv in cfg.CONFIG["sapphires"].items():
-        if guild.id in sv["servers"]:
-            return int(s)
-    return None
-
-
-@utils.func_timer()
-async def power_overwhelming(ctx, auth_guilds):
-    author = ctx["message"].author
-    r = "Checking..."
-    success = False
-    m = await ctx["channel"].send(r)
-
-    if patreon_info is None:
-        return False, "No need to do that."
-
-    patrons = patreon_info.fetch_patrons(force_update=False)
-    patrons[cfg.CONFIG["admin_id"]] = "sapphire"
-    auth_path = os.path.join(cfg.SCRIPT_DIR, "patron_auths.json")
-    if author.id in patrons:
-        reward = patrons[author.id].title()
-        max_guilds = {"Gold": 2, "Sapphire": 5, "Diamond": 50}
-        if isinstance(auth_guilds, list) and len(auth_guilds) > max_guilds[reward]:
-            return False, (
-                "Sorry, {0} patrons can only enable {0} features in up to {1} servers.".format(
-                    reward, max_guilds[reward]
-                )
-            )
-
-        auths = utils.read_json(auth_path)
-        str_uid = str(author.id)
-        prev_auths = auths[str_uid]["servers"] if str_uid in auths else []
-        if isinstance(auth_guilds, list):  # Possibly multiple guilds specified, command run in DM
-            auths[str_uid] = {"servers": auth_guilds}
-            guilds = [ctx["client"].get_guild(g) for g in auth_guilds]
-        else:  # Single guild specified, command run in server
-            auths[str_uid] = {"servers": [auth_guilds.id]}
-            guilds = [auth_guilds]
-
-        if cfg.SAPPHIRE_ID is not None:
-            config = utils.get_config()
-            if author.id != config["sapphires"][str(cfg.SAPPHIRE_ID)]["initiator"]:
-                return False, "This bot doesn't belong to you."
-            config["sapphires"][str(cfg.SAPPHIRE_ID)]["servers"] = [g.id for g in guilds]
-            utils.set_config(config)
-            cfg.CONFIG = config
-
-        utils.write_json(auth_path, auths, indent=4)
-
-        patreon_info.update_patron_servers(patrons)
-        success = True
-        r = ""
-        for g in guilds:
-            await admin_log(
-                "🔑 Authenticated **{}**'s {} server {} `{}`".format(author.name, reward, g.name, g.id),
-                ctx["client"],
-                important=False,
-            )
-            r += "\n✅ Nice! *{}* is now a **{}** server.".format(g.name, reward)
-        for a in prev_auths:
-            if a not in [g.id for g in guilds]:
-                r += "\n❗ Removed authentication from `{}`.".format(a)
-        if reward in ["Diamond", "Sapphire"] and cfg.SAPPHIRE_ID is None:
-            r += (
-                "\nPlease give me ~{} hours to set up your private bot - "
-                "I'll DM you when it's ready to make the swap!".format(12 if reward == "Sapphire" else 24)
-            )
-    else:
-        await admin_log("🔒 Failed to authenticate for **{}** `{}`".format(author.name, author.id), ctx["client"])
-        r = (
-            "❌ Sorry it doesn't look like you're a Patron.\n"
-            "If you just recently became one, please make sure you've connected your discord account "
-            "(<https://bit.ly/2UdfYbQ>) and try again in a few minutes. "
-            "If it still doesn't work, let me know in the support server: <https://discord.io/DotsBotsSupport>."
-        )
-    await m.edit(content=r)
-    return success, "NO RESPONSE"
-
-
-@utils.func_timer()
 def get_guilds(client):
     guilds = []
-    am_sapphire_bot = cfg.SAPPHIRE_ID is not None
-    am_gold_bot = "gold_id" in cfg.CONFIG and client.user.id == cfg.CONFIG["gold_id"]
     for g in client.guilds:
         if g is not None and g.name is not None:
-            if am_sapphire_bot:
-                if is_sapphire(g) and g.id in cfg.CONFIG["sapphires"][str(cfg.SAPPHIRE_ID)]["servers"]:
-                    guilds.append(g)
-            elif am_gold_bot:
-                if is_gold(g):
-                    guilds.append(g)
-            else:
-                if not is_sapphire(g) or get_sapphire_id(g) is None:
-                    guilds.append(g)
+            guilds.append(g)
     return guilds
 
 
@@ -777,10 +592,7 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
         else:
             cname = settings["channel_name_template"]
 
-        guild_is_gold = is_gold(guild)
-        guild_is_sapphire = is_sapphire(guild)
-
-        has_expression = "{{" in cname and "}}" in cname and cname.count("{{") == cname.count("}}") and guild_is_gold
+        has_expression = "{{" in cname and "}}" in cname and cname.count("{{") == cname.count("}}")
         is_private = settings["priv"] if "priv" in settings else False
 
         cname = cname.replace("@@num_players@@", "@@num_playing@@")  # Common mistake
@@ -833,8 +645,7 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
 
         random_set = 0
         while (
-            guild_is_gold
-            and "[[" in cname
+            "[[" in cname
             and "]]" in cname
             and ("/" in cname.split("[[", 1)[1].split("]]", 1)[0] or "\\" in cname.split("[[", 1)[1].split("]]", 1)[0])
         ):
@@ -853,7 +664,7 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
             cname = b + m + e
             random_set += 1
 
-        if "@@nato@@" in cname and guild_is_gold:
+        if "@@nato@@" in cname:
             nato = [
                 "Alpha",
                 "Bravo",
@@ -892,16 +703,16 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
             members = [m for m in channel.members if not m.bot]
             cname = cname.replace("@@num@@", str(len(members)))
 
-        if "@@num_playing@@" in cname and guild_is_sapphire:
+        if "@@num_playing@@" in cname:
             cname = cname.replace("@@num_playing@@", party["num_playing"])
 
-        if "@@party_size@@" in cname and guild_is_sapphire:
+        if "@@party_size@@" in cname:
             cname = cname.replace("@@party_size@@", party["size"])
 
-        if "@@party_state@@" in cname and guild_is_sapphire:
+        if "@@party_state@@" in cname:
             cname = cname.replace("@@party_state@@", party["state"])
 
-        if "@@party_details@@" in cname and guild_is_sapphire:
+        if "@@party_details@@" in cname:
             cname = cname.replace("@@party_details@@", party["details"])
 
         others = -1
@@ -936,16 +747,16 @@ async def rename_channel(guild, channel, settings, primary_id, templates=None, i
                     m = p
             cname = b + m + e
 
-        if "@@bitrate@@" in cname and guild_is_gold:
+        if "@@bitrate@@" in cname:
             cname = cname.replace("@@bitrate@@", "{}kbps".format(round(channel.bitrate / 1000)))
 
-        while "{{" in cname and "}}" in cname and cname.count("{{") == cname.count("}}") and guild_is_gold:
+        while "{{" in cname and "}}" in cname and cname.count("{{") == cname.count("}}"):
             m, e = cname.split("}}", 1)
             sections = m.split("{{")
             b = "{{".join(sections[:-1])
             m = sections[-1]
 
-            m = utils.eval_expression(m, guild_is_sapphire, creator, party, gname)
+            m = utils.eval_expression(m, creator, party, gname)
             cname = b + m + e
 
         if "@@game_name@@" in cname:
@@ -1302,7 +1113,7 @@ async def create_secondary(guild, primary, creator, private=False):
 
     # Text Channel
     settings = utils.get_serv_settings(guild)
-    if "text_channels" in settings and settings["text_channels"] and is_gold(guild):
+    if "text_channels" in settings and settings["text_channels"]:
         try:
             r = await guild.create_role(name="🎤🤖vc {}".format(c.id))
         except discord.errors.Forbidden:
@@ -1434,27 +1245,26 @@ async def remove_broken_channels(guild):
                     print(traceback.format_exc())
                 unlock_channel_request(v)
 
-    if is_gold(guild):
-        text_channels = [x for x in guild.channels if isinstance(x, discord.TextChannel)]
-        for c in text_channels:
-            front = (
-                ":eye: This channel is only visible to members of your voice channel, "
-                "and admins of this server. It will be deleted when everyone leaves. VC ID: "
-            )
-            if c.topic and c.topic.startswith(front):
+    text_channels = [x for x in guild.channels if isinstance(x, discord.TextChannel)]
+    for c in text_channels:
+        front = (
+            ":eye: This channel is only visible to members of your voice channel, "
+            "and admins of this server. It will be deleted when everyone leaves. VC ID: "
+        )
+        if c.topic and c.topic.startswith(front):
+            try:
+                vcid = int(c.topic.split(front)[1])
+            except ValueError:
+                continue
+            vc = guild.get_channel(vcid)
+            if not vc and c.id not in cfg.IGNORE_FOR_DELETION:
                 try:
-                    vcid = int(c.topic.split(front)[1])
-                except ValueError:
-                    continue
-                vc = guild.get_channel(vcid)
-                if not vc and c.id not in cfg.IGNORE_FOR_DELETION:
-                    try:
-                        await c.delete()
-                    except discord.errors.Forbidden:
-                        log("Failed to delete text channel {} in guild {}".format(c.id, guild.id), guild)
-                        cfg.IGNORE_FOR_DELETION.append(c.id)
-                    except discord.errors.NotFound:
-                        pass
+                    await c.delete()
+                except discord.errors.Forbidden:
+                    log("Failed to delete text channel {} in guild {}".format(c.id, guild.id), guild)
+                    cfg.IGNORE_FOR_DELETION.append(c.id)
+                except discord.errors.NotFound:
+                    pass
 
     for r in guild.roles:
         front = "🎤🤖vc "

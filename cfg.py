@@ -4,26 +4,11 @@ from time import time
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 SCRIPT_DIR = SCRIPT_DIR + ("/" if not SCRIPT_DIR.endswith("/") else "")
-SAPPHIRE_ID = None
 INVITE_LINK = "https://discordapp.com/api/oauth2/authorize?client_id=@@CID@@&permissions=286280784&scope=bot"
-
-TIER_ICONS = {
-    "gold": ":credit_card:",
-    "sapphire": ":gem:",
-    "diamond": ":diamond_shape_with_a_dot_inside:",
-    "free": ":free:",
-}
 
 # Store settings so we don't have to read them from drive all the time
 GUILD_SETTINGS = {}
 PREV_GUILD_SETTINGS = {}
-
-# Store Patreon stuff so we can use it globally and don't have to read it all on every is_gold check
-PATREON_DATA = {}
-PATRONS = {}
-NUM_PATRONS = -1
-GOLD_SERVERS = []
-SAPPHIRE_SERVERS = []
 
 # Track writes in progress so we don't exit during a write operation
 WRITES_IN_PROGRESS = []
@@ -66,7 +51,7 @@ SEED = int(time())
 
 CONFIG = get_config()
 
-defaults = {"loop_interval": 7, "gold_interval": 3, "sapphires": {}}
+defaults = {"loop_interval": 7}
 for d, dv in defaults.items():
     if d not in CONFIG:
         CONFIG[d] = dv

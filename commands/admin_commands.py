@@ -12,11 +12,6 @@ import pytz
 import utils
 from functions import echo, log
 
-try:
-    import patreon_info
-except ImportError:
-    patreon_info = None
-
 
 async def admin_command(cmd, ctx):
     client = ctx["client"]
@@ -28,7 +23,7 @@ async def admin_command(cmd, ctx):
     LAST_COMMIT = ctx["LAST_COMMIT"]
 
     if cmd == "log":
-        logfile = "log{}.txt".format("" if cfg.SAPPHIRE_ID is None else cfg.SAPPHIRE_ID)
+        logfile = "log.txt"
         if not os.path.exists(logfile):
             await channel.send("No log file")
             return
@@ -151,71 +146,6 @@ async def admin_command(cmd, ctx):
         r += "\n\n**{}** channels, **{}** users".format(utils.num_active_channels(guilds), total_users)
         await channel.send(r)
 
-    if cmd == "patrons":
-        if patreon_info is None:
-            await channel.send(content="❌ No patreon_info.py file")
-            return
-
-        patrons = patreon_info.fetch_patrons(force_update=True)
-        if not patrons:
-            await channel.send(content="❌ No patrons?")
-            return
-        fields = {}
-        auths = patreon_info.update_patron_servers(patrons)
-        for p, pv in patrons.items():
-            pu = client.get_user(p)
-            if pu is not None:
-                pn = pu.name
-            else:
-                pn = "Unknown"
-            gn = ""
-            if str(p) in auths:
-                for s in auths[str(p)]["servers"]:
-                    gn += "`{}` ".format(s)
-                if "extra_gold" in auths[str(p)]:
-                    for s in auths[str(p)]["extra_gold"]:
-                        gn += "+g`{}` ".format(s)
-            fields["`{}` **{}** {}".format(p, pn, cfg.TIER_ICONS[pv])] = gn
-        try:
-            for field_chunk in utils.dict_chunks(fields, 25):
-                e = discord.Embed(color=discord.Color.from_rgb(205, 220, 57))
-                e.title = "{} Patrons".format(len(field_chunk))
-                for f, fv in field_chunk.items():
-                    fv = fv if fv else "None"
-                    e.add_field(name=f, value=fv)
-                await channel.send(embed=e)
-        except:
-            await channel.send(traceback.format_exc())
-            await func.react(message, "❌")
-
-    if cmd == "sapphiredebug":
-        if cfg.SAPPHIRE_ID is None:
-            await channel.send(content="❌ Not a sapphire")
-            return
-
-        if patreon_info is None:
-            await channel.send(content="❌ No patreon_info")
-            return
-
-        auths = utils.read_json(os.path.join(cfg.SCRIPT_DIR, "patron_auths.json"))
-        initiator_id = cfg.CONFIG["sapphires"][str(cfg.SAPPHIRE_ID)]["initiator"]
-        msg = (
-            "Sapphire ID: {}\n"
-            "User: `{}`\n"
-            "Actual guilds: {}\n"
-            "Config guilds: {}\n"
-            "Authenticated guilds: {}\n"
-            "get_guilds: {}".format(
-                cfg.SAPPHIRE_ID,
-                initiator_id,
-                ", ".join(["`" + str(g.id) + "`" for g in client.guilds]),
-                ", ".join(["`" + str(g) + "`" for g in cfg.CONFIG["sapphires"][str(cfg.SAPPHIRE_ID)]["servers"]]),
-                ", ".join(["`" + str(g) + "`" for g in auths[str(initiator_id)]["servers"]]),
-                ", ".join(["`" + str(g.id) + "`" for g in func.get_guilds(client)]),
-            )
-        )
-        await channel.send(msg)
-
     if cmd == "status":
         g = utils.strip_quotes(params_str)
         if not g:
@@ -243,7 +173,6 @@ async def admin_command(cmd, ctx):
             gid = int(gid)
             g = client.get_guild(gid)
             head = "**{}** `{}`{}".format(g.name, gid, ("✅" if g in func.get_guilds(client) else "❌"))
-            head += "💎" if func.is_sapphire(gid) else ("💳" if func.is_gold(gid) else "")
             s = head
             s += "\n```json\n"
             with open(fp, "r") as f:
@@ -333,19 +262,6 @@ async def admin_command(cmd, ctx):
             u = client.get_user(int(uid))
             s = ""
 
-            # patreon_data = cfg.PATREON_DATA
-            patreon_data = utils.read_json(os.path.join(cfg.SCRIPT_DIR, "patreon_data.json"))
-            try:
-                for p_uid, p_user in patreon_data["user_data"].items():
-                    try:
-                        if p_user["attributes"]["social_connections"]["discord"]["user_id"] == uid:
-                            s += "{} `{}`\n".format(p_user["attributes"]["full_name"], p_user["attributes"]["email"])
-                            break
-                    except (KeyError, TypeError):
-                        pass  # Skip users with no discord connection
-            except KeyError:
-                log("Failed to get patron name and email for {}".format(uid))
-
             in_guilds = {}
             for g in client.guilds:
                 if u in g.members:
@@ -353,7 +269,6 @@ async def admin_command(cmd, ctx):
                     in_guilds[g.id] = {
                         "guild_name": func.esc_md(g.name),
                         "guild_size": g.member_count,
-                        "patron": "💎" if func.is_sapphire(g) else ("💳" if func.is_gold(g) else ""),
                         "user_name": func.esc_md(m.display_name),
                         "role": m.top_role.name,
                     }

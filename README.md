@@ -5,7 +5,6 @@
 - [Public bot invite link](https://discordapp.com/api/oauth2/authorize?client_id=479393422705426432&permissions=286280784&scope=bot)
 - [Beta bot invite link](https://discordapp.com/api/oauth2/authorize?client_id=675405085752164372&permissions=286280784&scope=bot)
 - [Discord server](https://discord.gg/HT6GNhJ)
-- [Patreon](https://www.patreon.com/pixaal)
 
 ## Requires:
 

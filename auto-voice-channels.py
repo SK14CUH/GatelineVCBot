@@ -45,7 +45,6 @@ ADMIN = None
 POOL = concurrent.futures.ThreadPoolExecutor()
 
 DEV_BOT = cfg.CONFIG["DEV"] if "DEV" in cfg.CONFIG else False
-GOLD_BOT = False
 NUM_SHARDS = cfg.CONFIG["num_shards"] if "num_shards" in cfg.CONFIG else 0
 
 if DEV_BOT:
@@ -53,23 +52,6 @@ if DEV_BOT:
     TOKEN = cfg.CONFIG["token_dev"]
 else:
     TOKEN = cfg.CONFIG["token"]
-try:
-    sid = int(sys.argv[1])
-    if str(sid) in cfg.CONFIG["sapphires"]:
-        cfg.SAPPHIRE_ID = sid
-        TOKEN = cfg.CONFIG["sapphires"][str(sid)]["token"]
-        NUM_SHARDS = 1
-    elif "gold_id" in cfg.CONFIG and sid == 6666:
-        GOLD_BOT = True
-        TOKEN = cfg.CONFIG["token_gold"]
-        NUM_SHARDS = 1
-    else:
-        print("NO SAPPHIRE WITH ID " + str(sid))
-        sys.exit()
-except IndexError:
-    pass
-except ValueError:
-    pass
 
 LAST_COMMIT = "UNKNOWN"
 try:
@@ -199,10 +181,6 @@ async def main_loop(client):
         cfg.TIMINGS[fn_name] = end_time - start_time
         if cfg.TIMINGS[fn_name] > 20:
             await func.log_timings(client, fn_name)
-
-        # Ensure patrons var is up to date
-        print("main loop", len(cfg.PATRONS))
-        await func.check_patreon(force_update=False)
 
 
 @loop(seconds=cfg.CONFIG["loop_interval"])
@@ -563,8 +541,7 @@ async def dynamic_tickrate(client):
         new_tickrate = max(10, min(100, new_tickrate))
         new_seed_interval = current_channels / 45
         new_seed_interval = max(10, min(15, new_seed_interval))
-        if cfg.SAPPHIRE_ID is None:
-            print("New tickrate is {0:.1f}s, seed interval is {1:.2f}m".format(new_tickrate, new_seed_interval))
+        print("New tickrate is {0:.1f}s, seed interval is {1:.2f}m".format(new_tickrate, new_seed_interval))
         main_loop.change_interval(seconds=max(301, new_tickrate))
         creation_loop.change_interval(seconds=new_tickrate)
         deletion_loop.change_interval(seconds=new_tickrate * 2)
@@ -634,7 +611,7 @@ async def analytics(client):
 
     analytics.last_run = datetime.now(pytz.utc)
     start_time = time()
-    if client.is_ready() and cfg.SAPPHIRE_ID is None:
+    if client.is_ready():
         fp = os.path.join(cfg.SCRIPT_DIR, "analytics.json")
         guilds = func.get_guilds(client)
         if not os.path.exists(fp):
@@ -686,22 +663,6 @@ async def update_status(client):
                 log("Failed to update status: {}".format(type(e).__name__))
 
 
-@loop(hours=3)
-async def check_patreon(client):
-    await client.wait_until_ready()
-
-    check_patreon.last_run = datetime.now(pytz.utc)
-    if client.is_ready():
-        await asyncio.get_event_loop().run_in_executor(
-            POOL,
-            partial(
-                lambda: asyncio.run(
-                    func.check_patreon(force_update=cfg.SAPPHIRE_ID in [None, 0] or DEV_BOT, client=client)
-                )
-            ),
-        )
-
-
 loops = {  # loops with client as only arg - passed to admin_commands's `loop` cmd
     "main_loop": main_loop,
     "deletion_loop": deletion_loop,
@@ -713,7 +674,6 @@ loops = {  # loops with client as only arg - passed to admin_commands's `loop` c
     "lingering_secondaries": lingering_secondaries,
     "analytics": analytics,
     "update_status": update_status,
-    "check_patreon": check_patreon,
 }
 if "disable_creation_loop" not in cfg.CONFIG or not cfg.CONFIG["disable_creation_loop"]:
     loops["creation_loop"] = creation_loop
@@ -791,8 +751,6 @@ class MyClient(discord.AutoShardedClient):
         print("Logged in as")
         print(self.user.name)
         print(self.user.id)
-        if cfg.SAPPHIRE_ID is not None:
-            print("Sapphire:", cfg.SAPPHIRE_ID)
         print("discordpy version: {}".format(discord.__version__))
         print("-" * 24)
 
@@ -898,68 +856,6 @@ async def on_message(message):
                 "If you've tried that already, then make sure I have the right permissions "
                 "to see and reply to your commands in that channel."
             )
-        elif message.content.lower().startswith("power-overwhelming"):
-            channel = message.channel
-            params_str = message.content[len("power-overwhelming") :].strip()
-            if not params_str:
-                await channel.send(
-                    "You need to specify a guild ID. " "Try typing `who am I` to get a list of guilds we're both in"
-                )
-                return
-            auth_guilds = params_str.replace(" ", "\n").split("\n")
-            for auth_guild in auth_guilds:
-                try:
-                    g = client.get_guild(int(auth_guild))
-                    if g is None:
-                        await channel.send(
-                            "`{}` is not a guild I know about, "
-                            "maybe you need to invite me there first?".format(auth_guild)
-                        )
-                        return
-                except ValueError:
-                    await channel.send(
-                        "`{}` is not a valid guild ID, try typing "
-                        "`who am I` to get a list of guilds we're both in.".format(auth_guild)
-                    )
-                    return
-                except Exception as e:
-                    error_text = "Auth Error `{}`\nUser `{}`\nCMD `{}`".format(
-                        type(e).__name__, message.author.id, message.content
-                    )
-                    await func.admin_log(error_text, ctx["client"])
-                    log(error_text)
-                    error_text = traceback.format_exc()
-                    await func.admin_log(error_text, ctx["client"])
-                    log(error_text)
-                    return False, (
-                        "A `{}` error occured :(\n"
-                        "An admin has been notified and will be in touch.\n"
-                        "In the meantime, try asking for help in the support server: "
-                        "https://discord.gg/qhMrz6u".format(type(e).__name__)
-                    )
-
-            ctx = {
-                "message": message,
-                "channel": channel,
-                "client": client,
-            }
-            auth_guilds = [int(g) for g in auth_guilds]
-            success, response = await func.power_overwhelming(ctx, auth_guilds)
-
-            if success or response != "NO RESPONSE":
-                log("DM CMD {}: {}".format("Y" if success else "F", message.content))
-
-            if success:
-                if response:
-                    if response != "NO RESPONSE":
-                        await echo(response, channel, message.author)
-                else:
-                    await func.react(message, "✅")
-            else:
-                if response != "NO RESPONSE":
-                    await func.react(message, "❌")
-                    if response:
-                        await echo(response, channel, message.author)
         elif message.content.lower() in ["who am i", "who am i?"]:
             in_guilds = []
             for g in client.guilds:
@@ -1023,8 +919,6 @@ async def on_message(message):
             "print_prefix": print_prefix,
             "prefix_p": prefix_p,
             "command": cmd,
-            "gold": func.is_gold(guild),
-            "sapphire": func.is_sapphire(guild),
             "settings": settings,
             "message": message,
             "channel": channel,
@@ -1271,11 +1165,10 @@ async def on_voice_state_update(member, before, after):
 async def on_guild_join(guild):
     num_members = len([m for m in guild.members if not m.bot])
     important = num_members > 50000
-    if cfg.SAPPHIRE_ID is None:
-        settings = utils.get_serv_settings(guild)
-        settings["left"] = False
-        utils.set_serv_settings(guild, settings)
-        log("Joined guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
+    settings = utils.get_serv_settings(guild)
+    settings["left"] = False
+    utils.set_serv_settings(guild, settings)
+    log("Joined guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
     await func.admin_log(
         ":bell:{} Joined: **{}** (`{}`) - **{}** members".format(
             utils.guild_size_icon(num_members), func.esc_md(guild.name), guild.id, num_members
@@ -1288,11 +1181,10 @@ async def on_guild_join(guild):
 @client.event
 async def on_guild_remove(guild):
     num_members = len([m for m in guild.members if not m.bot])
-    if cfg.SAPPHIRE_ID is None:
-        settings = utils.get_serv_settings(guild)
-        settings["left"] = datetime.now(pytz.timezone(cfg.CONFIG["log_timezone"])).strftime("%Y-%m-%d %H:%M")
-        utils.set_serv_settings(guild, settings)
-        log("Left guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
+    settings = utils.get_serv_settings(guild)
+    settings["left"] = datetime.now(pytz.timezone(cfg.CONFIG["log_timezone"])).strftime("%Y-%m-%d %H:%M")
+    utils.set_serv_settings(guild, settings)
+    log("Left guild {} `{}` with {} members".format(guild.name, guild.id, num_members))
     if "leave_inactive" in cfg.CONFIG and guild.id in cfg.CONFIG["leave_inactive"]:
         pass
     elif "leave_unauthorized" in cfg.CONFIG and guild.id in cfg.CONFIG["leave_unauthorized"]:

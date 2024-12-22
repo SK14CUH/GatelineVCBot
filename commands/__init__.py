@@ -122,19 +122,6 @@ async def run(c, ctx, params):
         if not any((r in roles) for r in restrictions[c]):
             return False, "You don't have permission to use that command."
 
-    if cmd.sapphire_required and not ctx["sapphire"]:
-        return False, (
-            "That command is restricted to :gem: **Sapphire Patron** servers.\n"
-            "Become a Sapphire Patron to support the development of this bot and unlock more ~~useless~~ "
-            "amazing features: https://www.patreon.com/pixaal"
-        )
-    elif cmd.gold_required and not ctx["gold"]:
-        return False, (
-            "That command is restricted to :credit_card: **Gold Patron** servers.\n"
-            "Become a Gold Patron to support the development of this bot and unlock more ~~useless~~ "
-            "amazing features: https://www.patreon.com/pixaal"
-        )
-
     if cmd.voice_required:
         v = ctx["message"].author.voice
         if v is not None and v.channel.id in get_secondaries(ctx["guild"], ctx["settings"]):

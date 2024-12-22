@@ -27,7 +27,7 @@ help_text = [
         (
             " ·  Level 3:",
             "Someone joins or leaves an existing channel.\n\n"
-            "Level 3 logging is only available to 💎 **Sapphire Patron** servers, as it may generate "
+            "Level 3 logging may generate "
             "a large number of messages which could overload the bot and trigger Discord's rate limiting.\n\n"
             "If you don't specify a logging level and haven't done so before, level 1 will be assumed.",
         ),
@@ -84,11 +84,6 @@ async def execute(ctx, params):
             return False, "The log level you chose (`{}`) is not a number.".format(level)
         if not (1 <= level <= 3):
             return False, "The log level must be between 1 and 3."
-        if level == 3 and not func.is_sapphire(guild):
-            return False, (
-                "Only Sapphire Patron servers can use level 3 logging, as it may generate a large "
-                "number of messages which may overload the bot and trigger Discord's rate limiting."
-            )
 
     perms = tc.permissions_for(guild.me)
     if not perms.send_messages:
@@ -115,5 +110,4 @@ command = Cmd(
     help_text=help_text,
     params_required=1,
     admin_required=True,
-    gold_required=True,
 )

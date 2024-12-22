@@ -39,19 +39,10 @@ async def execute(ctx, params):
                 " ·  **<PREFIX>kick `@USER`** - "
                 "Start a votekick to remove someone from your channel.\n\n"
                 " ·  **<PREFIX>transfer `@USER`** - "
-                "Transfer ownership of your channel to someone else.\n\n".format(esc_md(author.display_name))
-            )
-            if ctx["gold"]:
-                text += (
-                    " ·  **<PREFIX>name** - Change the name of your voice channel.\n\n"
-                    " ·  **<PREFIX>nick** - Set what channels that show the creator's name will call you.\n\n"
-                    " ·  **<PREFIX>bitrate** - Set a server-wide custom bitrate (in kbps) for yourself that will be "
-                    "used for any channels you join.\n\n"
-                )
-            text += (
+                "Transfer ownership of your channel to someone else.\n\n"
                 " ·  **<PREFIX>invite** - Invite me to another server!\n\n"
                 " ·  **<PREFIX>help `command`** - Get more info about a particular command."
-            )
+            ).format(esc_md(author.display_name))
             text = text.replace("<PREFIX>", ctx["print_prefix"])
             e.add_field(name="Commands:", value=text)
             try:
@@ -73,17 +64,8 @@ async def execute(ctx, params):
             s = s.replace("@Auto Voice Channels ", "@{} ".format(ctx["message"].guild.me.display_name))
             s = s.replace("@pixaal", author.mention)
             s = s.replace(" :)", " :slight_smile:")
-            s = s.replace("**Gold Patron**", ":credit_card: **Gold Patron**")
             s = s.replace("Change the prefix of the bot (default is", "Change the prefix of the bot (currently")
-            s = s.replace("<https://www.patreon.com/pixaal>", "https://www.patreon.com/pixaal")  # Always embed
-            if s.startswith("\n**-- Quickstart --**\n") and can_embed:
-                embed = discord.Embed(
-                    color=discord.Color.from_rgb(221, 46, 68),
-                    description="❤ If you like this bot and want to help keep it alive, [support us on Patreon](https://www.patreon.com/pixaal) :)",
-                )
-                await channel.send(content="** **" + s, embed=embed)
-                continue
-            elif s.startswith("\n**-- Commands --**\n") and can_embed:
+            if s.startswith("\n**-- Commands --**\n") and can_embed:
                 lines = [l for l in s.split("\n") if l != ""]
                 parts = []
                 title = []
@@ -138,11 +120,6 @@ async def execute(ctx, params):
                 content = None
                 if "incorrect_command_usage" in ctx and part == help_text[0]:
                     content = "Incorrect command usage, here's some info about the `{}` command:".format(c)
-                if part == help_text[-1]:
-                    e.set_footer(
-                        text="More help: wiki.dotsbots.com  \nSupport me: patreon.com/pixaal",
-                        icon_url=ctx["guild"].me.avatar_url_as(size=32),
-                    )
                 if part == help_text[0]:
                     help_link = (
                         commands[c].help_link
@@ -175,18 +152,6 @@ async def execute(ctx, params):
                     print(traceback.format_exc())
                     return False, "NO RESPONSE"
 
-            if commands[c].sapphire_required and not ctx["sapphire"]:
-                await channel.send(
-                    "**Note:** This command is restricted to :gem: **Sapphire Patron** servers.\n"
-                    "Become a Sapphire Patron to support the development of this bot and unlock more ~~useless~~ "
-                    "amazing features: <https://www.patreon.com/pixaal>"
-                )
-            elif commands[c].gold_required and not ctx["gold"]:
-                await channel.send(
-                    "**Note:** This command is restricted to :credit_card: **Gold Patron** servers.\n"
-                    "Become a Gold Patron to support the development of this bot and unlock more ~~useless~~ "
-                    "amazing features: <https://www.patreon.com/pixaal>"
-                )
             return True, "NO RESPONSE"
         elif c == "expressions":
             e = discord.Embed(color=discord.Color.from_rgb(205, 220, 57))
@@ -223,19 +188,19 @@ async def execute(ctx, params):
             )
             e.add_field(
                 name=" ·  `PLAYERS>number`",
-                value="💎 [*patrons only.*](https://patreon.com/pixaal) Check if the number of players in your game "
+                value="Check if the number of players in your game "
                 "(determined either by Discord Rich Presence or the game activity statuses of members in the channel) "
                 "is greater than the number provided. You can also use `<`, `<=`, `>=`, `=` and `!=`.\n\n",
             )
             e.add_field(
                 name=" ·  `MAX>number`",
-                value="💎 [*patrons only.*](https://patreon.com/pixaal) Check if the maximum number of players "
+                value="Check if the maximum number of players "
                 "allowed in your game (determined by Discord Rich Presence or the channel limit) is greater than the "
                 "number provided. You can also use `<`, `<=`, `>=`, `=` and `!=`.\n\n",
             )
             e.add_field(
                 name=" ·  `RICH`",
-                value="💎 [*patrons only.*](https://patreon.com/pixaal) Whether or not the current game uses "
+                value="Whether or not the current game uses "
                 "Discord Rich Presence, which means `@@num_playing@@`, `@@party_size@@`, `@@party_state@@`, and "
                 "`@@party_details@@` should have reliable values.\n\n",
             )
